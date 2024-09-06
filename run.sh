@@ -19,3 +19,6 @@ cd -
 ## test
 echo "============ Test print IR nesting ================"
 ./build/bin/schumacher-opt --test-print-nesting ./test/payloads/hello_matmul.mlir
+
+echo "============ Test AffineMap and TilingInterface ================"
+./build/bin/schumacher-opt --test-affinemap-tilinginterface ./test/payloads/hello_matmul.mlir

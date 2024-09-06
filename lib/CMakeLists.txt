@@ -5,6 +5,7 @@ add_mlir_library(
   # Built from the following source files.
   MyExtension.cpp
   ToyTransformPass.cpp
+  TestAffineMapPass.cpp
 
   # Make includes visible without top-level path.
   ADDITIONAL_HEADER_DIRS

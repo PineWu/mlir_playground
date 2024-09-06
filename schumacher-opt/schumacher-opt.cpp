@@ -29,6 +29,7 @@ namespace mlir {
 void registerTestPrintNestingPass();
 void registerToyTransformPass();
 void registerLinalgToEmitCPass();
+void registerTestAffineMapPass();
 } // namespace mlir
 
 namespace mlir::test {
@@ -69,6 +70,7 @@ int main(int argc, char **argv) {
   mlir::registerTestPrintNestingPass();
   mlir::registerToyTransformPass();
   mlir::registerLinalgToEmitCPass();
+  mlir::registerTestAffineMapPass();
 
   // Delegate to the MLIR utility for parsing and pass management.
   return mlir::MlirOptMain(argc, argv, "schumacher-opt", registry)
