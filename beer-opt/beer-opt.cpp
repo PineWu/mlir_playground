@@ -1,4 +1,4 @@
-//===-- transform-opt.cpp - Transform dialect tutorial entry point --------===//
+//===-- beer-opt.cpp - Out-of-tree MLIR play ground entry point --------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
   mlir::registerTestAffineMapPass();
 
   // Delegate to the MLIR utility for parsing and pass management.
-  return mlir::MlirOptMain(argc, argv, "schumacher-opt", registry)
+  return mlir::MlirOptMain(argc, argv, "beer-opt", registry)
                  .succeeded()
              ? EXIT_SUCCESS
              : EXIT_FAILURE;

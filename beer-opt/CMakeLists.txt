@@ -18,10 +18,10 @@ set(LIBS
 
 #add_llvm_example(transform-opt-ch2
 #  transform-opt/transform-opt.cpp)
-add_llvm_executable(schumacher-opt schumacher-opt.cpp)
-llvm_update_compile_flags(schumacher-opt)
+add_llvm_executable(beer-opt beer-opt.cpp)
+llvm_update_compile_flags(beer-opt)
 
-target_link_libraries(schumacher-opt
+target_link_libraries(beer-opt
   PRIVATE
   ${LIBS}
   MLIRIR

@@ -47,7 +47,7 @@ private:
         };
         */
 
-        StringRef funcName = "schumacher::genmatmul";
+        StringRef funcName = "beer::genmatmul";
         StringAttr callee = rewriter.getStringAttr(funcName);
 
         ArrayAttr args;
