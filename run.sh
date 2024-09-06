@@ -1,6 +1,6 @@
 LLVM_BUILD_DIR="/home/lixiang/Workspace/llvm-project/build"
 
-if [[ -d "./build" ]]; then
+if [ -d "./build" ]; then
     echo "build is already exists;"
 else
     mkdir build
