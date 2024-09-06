@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/AffineExpr.h"
@@ -13,12 +14,14 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/IR/Visitors.h"
 #include "mlir/Interfaces/TilingInterface.h"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/FloatingPointMode.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace mlir;
@@ -37,6 +40,9 @@ struct TestAffineMapPass : public PassWrapper<TestAffineMapPass, OperationPass<M
 
   void testAffineMap(Operation *op) {
     MLIRContext *ctx = op->getContext();
+    ModuleOp module = dyn_cast<ModuleOp>(op);
+    auto builder = OpBuilder(ctx);
+
     AffineMap map1 = AffineMap::get(ctx);
     llvm::outs() << "AffineMap 1: " << map1 << "\n";
 
@@ -68,13 +74,53 @@ struct TestAffineMapPass : public PassWrapper<TestAffineMapPass, OperationPass<M
     AffineMap map9 = AffineMap::getMultiDimIdentityMap(4, ctx);
     llvm::outs() << "AffineMap 9: " << map9 << "\n";
 
+    llvm::ArrayRef<AffineExpr> exprs1 = {
+        getAffineDimExpr(0, ctx),
+        getAffineBinaryOpExpr(AffineExprKind::Add, getAffineDimExpr(1, ctx),
+                              getAffineConstantExpr(9, ctx))};
+    AffineMap mapMin = AffineMap::get(2, 0, exprs1, ctx);
+
+    auto foldMin = affine::makeComposedFoldedAffineMin(
+        builder, op->getLoc(), mapMin,
+        {OpFoldResult(builder.getIndexAttr(333)),
+         OpFoldResult(builder.getIndexAttr(213))});
+    llvm::outs() << "AffineMap Min: " << mapMin
+                 << " , folded Min resulst: " << foldMin << "\n";
+    // create a affine.min OP and fold it
+    Value cst1 =
+        builder.create<arith::ConstantIndexOp>(op->getLoc(), 333).getResult();
+    Value cst2 =
+        builder.create<arith::ConstantIndexOp>(op->getLoc(), 213).getResult();
+    affine::AffineMinOp minOp = builder.create<affine::AffineMinOp>(
+        op->getLoc(), mapMin, ValueRange{cst1, cst2});
+    llvm::outs() << "=====> AffineMinOp: " << minOp << "\n";
+
+    SmallVector<OpFoldResult> foldResults;
+    minOp->fold(foldResults);
+    llvm::outs() << "=====> folded with default operands: "
+                 << foldResults.front() << "\n";
+
+    SmallVector<OpFoldResult> foldResults_1;
+    SmallVector<Attribute> constOperands{builder.getIndexAttr(77),
+                                         builder.getIndexAttr(9)};
+    minOp->fold(constOperands, foldResults_1);
+    llvm::outs() << "=====> folded with new operands: " << foldResults_1.front()
+                 << "\n";
+
     // concat map3 and map9
     AffineMap concatMap = concatAffineMaps(llvm::ArrayRef<AffineMap>{map3, map9});
     llvm::outs() << "Concatenated map: " << concatMap << "\n";
 
+    // infer from exprs
+    auto inferList = AffineMap::inferFromExprList(
+        ArrayRef<ArrayRef<AffineExpr>>{{getAffineDimExpr(3, ctx)},
+                                       {getAffineDimExpr(0, ctx)}},
+        ctx);
+    for (auto inferItem : inferList) {
+      llvm::outs() << "Infered map: " << inferItem << "\n";
+    }
+
     // call lingal.MatmulOp TilingInterface
-    ModuleOp module = dyn_cast<ModuleOp>(op);
-    auto builder = OpBuilder(ctx);
     for (auto func : module.getOps<func::FuncOp>()) {
       func.walk([&](Operation *op) {
         if (isa<linalg::LinalgOp>(op)) {
@@ -85,9 +131,23 @@ struct TestAffineMapPass : public PassWrapper<TestAffineMapPass, OperationPass<M
           for (auto indexingMap : linalgOp.getIndexingMapsArray()) {
             llvm::outs() << "Linalg Matmul indexingMap: " << indexingMap << "\n";
           }
-          for (auto shape : linalgOp.createFlatListOfOperandDims(builder, op->getLoc())) {
+          auto opDims =
+              linalgOp.createFlatListOfOperandDims(builder, op->getLoc());
+          for (auto shape : opDims) {
             llvm::outs() << "Linalg Matmul operand shape: " << shape << "\n";
           }
+          auto foldRet = affine::makeComposedFoldedAffineApply(
+              builder, op->getLoc(), inferList.front(), opDims);
+          llvm::outs() << "Linalg Matmul composed folded affine apply: "
+                       << foldRet << "\n";
+          // insert an affine applyOp into IR
+          llvm::SmallVector<Value> valueOperands;
+          auto foldmap = mlir::foldAttributesIntoMap(builder, inferList.front(),
+                                                     opDims, valueOperands);
+          llvm::outs() << "foldmap: " << foldmap << "\n";
+          auto applyOp = affine::makeComposedAffineApply(
+              builder, op->getLoc(), inferList.front(), opDims);
+          llvm::outs() << "AffineApplyOp: " << applyOp << "\n";
 
           for (auto ret : linalgOp.getShapesToLoopsMap().getResults()) {
             llvm::outs() << "Linalg Matmul result of getShapesToLoopsMap: " << ret << "\n";
