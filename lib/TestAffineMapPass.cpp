@@ -73,12 +73,35 @@ struct TestAffineMapPass : public PassWrapper<TestAffineMapPass, OperationPass<M
 
     AffineMap map9 = AffineMap::getMultiDimIdentityMap(4, ctx);
     llvm::outs() << "AffineMap 9: " << map9 << "\n";
+    for (auto e : map9.getResults()) {
+      llvm::outs() << "+++ AffineMap map9: " << e << "\n";
+    }
+
+    // build affinemap use symboles
+    AffineExpr sym0, sym1, sym2;
+    bindSymbols(ctx, sym0, sym1, sym2);
+    AffineMap map10 = AffineMap::get(0, 3, {(sym1 - sym0) % sym2}, ctx);
+    llvm::outs() << "AffineMap 10: " << map10 << "\n";
+    AffineExpr d0, d1, d2;
+    bindDims(ctx, d0, d1, d2);
+    AffineMap map11 = AffineMap::get(3, 0, {(d1 - d0) % d2}, ctx);
+    llvm::outs() << "AffineMap 11: " << map11 << "\n";
+
+    AffineMap map12 = AffineMap::get(2, 2, {(d1 - d0) % (sym0 + sym1)}, ctx);
+    llvm::outs() << "AffineMap 12: " << map12 << "\n";
+
+    // Invalid use of d2 and sym2
+    // AffineMap map13 = AffineMap::get(2, 2, {(d2 - d0) % (sym0 + sym2)}, ctx);
+    // llvm::outs() << "AffineMap 13: " << map13 << "\n";
 
     llvm::ArrayRef<AffineExpr> exprs1 = {
         getAffineDimExpr(0, ctx),
         getAffineBinaryOpExpr(AffineExprKind::Add, getAffineDimExpr(1, ctx),
                               getAffineConstantExpr(9, ctx))};
     AffineMap mapMin = AffineMap::get(2, 0, exprs1, ctx);
+    for (auto e : mapMin.getResults()) {
+      llvm::outs() << "+++ AffineMap Min: " << e << "\n";
+    }
 
     auto foldMin = affine::makeComposedFoldedAffineMin(
         builder, op->getLoc(), mapMin,
